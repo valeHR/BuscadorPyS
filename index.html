@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Buscador de Películas y Series</title>
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <style>
+    .loader {
+      border-top-color: transparent;
+      border-image: linear-gradient(to right, #3b82f6, #9333ea) 1;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 flex flex-col min-h-screen">
+  <!-- Navbar -->
+  <nav class="bg-gray-900 text-white p-4 shadow-lg fixed top-0 w-full z-20 border-b border-blue-600/40">
+    <div class="flex flex-col md:flex-row items-center justify-between max-w-7xl mx-auto space-y-4 md:space-y-0">
+      <div class="flex items-center space-x-2 group">
+        <i class="fas fa-film text-2xl text-blue-400 group-hover:scale-110 transition-transform"></i>
+        <h1 class="text-2xl font-bold tracking-wide group-hover:text-blue-400 transition-colors">CineFinder</h1>
+      </div>
+      <div class="flex items-center gap-4">
+        <div class="flex w-full max-w-xl shadow-lg rounded-full overflow-hidden">
+          <input id="searchInput" type="text" 
+            class="w-full p-2 pl-4 bg-gray-800 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
+            placeholder="🔍 Buscar película o serie...">
+          <button id="searchBtn" 
+            class="bg-blue-600 hover:bg-blue-700 px-6 text-white font-medium transition-colors">
+            <i class="fas fa-search"></i>
+          </button>
+        </div>
+        <!-- Botón de descripción -->
+        <button id="openModal" 
+          class="px-4 py-2 rounded-full bg-slate-700 hover:bg-blue-600 transition-colors text-sm font-medium">
+          <i class="fas fa-circle-info mr-1"></i> Descripción
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Contenido -->
+  <main class="flex-grow p-6 pt-28 max-w-7xl mx-auto">
+    <!-- Loader y mensajes -->
+    <div class="flex flex-col items-center justify-center space-y-4 mb-6">
+      <p id="message" class="text-lg text-gray-500 italic"></p>
+      <div id="loader" 
+        class="loader w-14 h-14 border-4 rounded-full border-solid border-gray-200 border-t-blue-500 hidden"></div>
+    </div>
+
+    <!-- Géneros -->
+    <section class="mb-10">
+      <h3 class="text-xl font-semibold mb-4 text-gray-700">Explorar por Género</h3>
+      <div id="genreButtons" class="flex flex-wrap gap-3">
+        <!-- Botones generados con JS -->
+      </div>
+    </section>
+
+    <!-- Resultados -->
+    <section>
+      <h3 class="text-xl font-semibold mb-4 text-gray-700">Resultados</h3>
+      <div id="resultsGrid" class="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+        <!-- Tarjetas de resultados -->
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-gray-900 text-white py-4 text-center border-t border-blue-600/30">
+    <p class="text-sm">&copy; 2025 CineFinder. Todos los derechos reservados. | Creado por valeHR</p>
+  </footer>
+
+  <!-- Modal -->
+  <div id="infoModal" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 relative animate-fadeIn">
+      <!-- Botón cerrar -->
+      <button id="closeModal" class="absolute top-3 right-3 text-gray-500 hover:text-red-500">
+        <i class="fas fa-times text-lg"></i>
+      </button>
+      <!-- Contenido -->
+      <h2 class="text-2xl font-bold text-blue-600 mb-4 flex items-center gap-2">
+        <i class="fas fa-circle-info"></i> Sobre CineFinder
+      </h2>
+      <p class="text-gray-700 mb-4">
+        <b>CineFinder</b> es un buscador de películas y series conectado a la API de <span class="text-blue-600 font-medium">The Movie Database (TMDb)</span>.
+        Aquí puedes explorar tus títulos favoritos, filtrar por género y obtener información básica de cada producción.
+      </p>
+      <p class="text-gray-700 mb-4">
+        <b>¿Para qué sirve?</b>  
+        Permite descubrir de forma rápida y sencilla qué películas o series existen, ver sus pósters, año de lanzamiento y organizarlas según tus intereses.
+      </p>
+      <p class="text-gray-700">
+        <b>Tecnologías utilizadas:</b><br>
+        ✅ HTML5<br>
+        ✅ CSS3 + <span class="text-sky-500 font-semibold">TailwindCSS</span><br>
+        ✅ JavaScript (Fetch API)<br>
+        ✅ <span class="text-green-600 font-semibold">API TMDb</span><br>
+        ✅ <i class="fab fa-font-awesome"></i> Font Awesome
+      </p>
+    </div>
+  </div>
+
+  <script>
+    const API_KEY = "416af01fc2d156e48da8448fdfef0efc";
+    const API_URL = "https://api.themoviedb.org/3/search/multi";
+    const GENRES_URL = "https://api.themoviedb.org/3/genre/movie/list";
+    const IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500";
+
+    const searchInput = document.getElementById("searchInput");
+    const searchBtn = document.getElementById("searchBtn");
+    const messageElement = document.getElementById("message");
+    const loaderElement = document.getElementById("loader");
+    const genreButtonsContainer = document.getElementById("genreButtons");
+    const resultsGrid = document.getElementById("resultsGrid");
+
+    let genres = {};
+    let currentResults = [];
+
+    const showLoader = (show) => {
+      loaderElement.classList.toggle("hidden", !show);
+      messageElement.textContent = show ? "" : messageElement.textContent;
+    };
+
+    const showMessage = (text) => {
+      loaderElement.classList.add("hidden");
+      messageElement.textContent = text;
+    };
+
+    const renderResults = (results) => {
+      resultsGrid.innerHTML = "";
+      if (results.length === 0) {
+        showMessage("No se encontraron resultados. Intenta con otra búsqueda.");
+        return;
+      }
+      results.forEach(item => {
+        const poster = item.poster_path 
+          ? `${IMAGE_BASE_URL}${item.poster_path}` 
+          : "https://placehold.co/500x750/cccccc/333333?text=No+Poster";
+        const title = item.title || item.name;
+        const year = (item.release_date || item.first_air_date || "").split("-")[0] || "N/A";
+
+        const card = document.createElement("div");
+        card.className = "bg-white rounded-xl shadow-lg overflow-hidden hover:scale-105 transform transition cursor-pointer";
+        card.innerHTML = `
+          <img src="${poster}" alt="${title}" class="w-full h-72 object-cover">
+          <div class="p-4">
+            <h4 class="font-bold text-lg text-gray-800 mb-1">${title}</h4>
+            <p class="text-sm text-gray-500">📅 ${year}</p>
+          </div>
+        `;
+        resultsGrid.appendChild(card);
+      });
+    };
+
+    const getGenres = async () => {
+      try {
+        const response = await fetch(`${GENRES_URL}?api_key=${API_KEY}&language=es-MX`);
+        const data = await response.json();
+        data.genres.forEach(genre => {
+          genres[genre.id] = genre.name;
+          const button = document.createElement("button");
+          button.textContent = genre.name;
+          button.className = "px-4 py-2 rounded-full bg-slate-300 text-slate-800 hover:bg-blue-600 hover:text-white transition text-sm";
+          button.addEventListener("click", () => {
+            document.querySelectorAll("#genreButtons button").forEach(btn =>
+              btn.classList.remove("bg-blue-600", "text-white")
+            );
+            button.classList.add("bg-blue-600", "text-white");
+            filterByGenre(genre.id);
+          });
+          genreButtonsContainer.appendChild(button);
+        });
+      } catch (error) {
+        console.error("Error al obtener géneros:", error);
+      }
+    };
+
+    const filterByGenre = (genreId) => {
+      if (currentResults.length === 0) {
+        showMessage("Realiza una búsqueda primero para filtrar por género.");
+        return;
+      }
+      const filteredResults = currentResults.filter(item =>
+        item.genre_ids && item.genre_ids.includes(genreId)
+      );
+      renderResults(filteredResults);
+      showMessage(`Resultados filtrados por: ${genres[genreId]}`);
+    };
+
+    const searchMovies = async (query) => {
+      if (!query) return;
+      showLoader(true);
+      try {
+        const response = await fetch(`${API_URL}?api_key=${API_KEY}&query=${encodeURIComponent(query)}&language=es-MX`);
+        const data = await response.json();
+        currentResults = data.results.filter(item => item.media_type === "movie" || item.media_type === "tv");
+        renderResults(currentResults);
+        showMessage(currentResults.length ? "" : "No se encontraron resultados.");
+      } catch (error) {
+        console.error("Error en la búsqueda:", error);
+        showMessage("Ha ocurrido un error. Inténtalo de nuevo.");
+      } finally {
+        showLoader(false);
+      }
+    };
+
+    searchBtn.addEventListener("click", () => {
+      searchMovies(searchInput.value.trim());
+    });
+    searchInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") searchMovies(searchInput.value.trim());
+    });
+
+    window.onload = () => {
+      getGenres();
+      showMessage("Busca una película o serie para empezar 🎬");
+    };
+
+    // --- Modal ---
+    const openModalBtn = document.getElementById("openModal");
+    const closeModalBtn = document.getElementById("closeModal");
+    const infoModal = document.getElementById("infoModal");
+
+    openModalBtn.addEventListener("click", () => {
+      infoModal.classList.remove("hidden");
+    });
+    closeModalBtn.addEventListener("click", () => {
+      infoModal.classList.add("hidden");
+    });
+    infoModal.addEventListener("click", (e) => {
+      if (e.target === infoModal) infoModal.classList.add("hidden");
+    });
+  </script>
+</body>
+</html>
